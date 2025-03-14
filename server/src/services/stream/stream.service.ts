@@ -22,6 +22,7 @@ export class StreamService {
     season,
     episode,
     preferredLanguage,
+    type,
   }: {
     torrent: TorrentDetails;
     isRecommended: boolean;
@@ -29,6 +30,7 @@ export class StreamService {
     season: number | undefined;
     episode: number | undefined;
     preferredLanguage: Language;
+    type: string;
   }): Stream {
     const config = this.configService.getConfig();
     const torrentFileIndex = torrent.getMediaFileIndex({ season, episode });
@@ -37,6 +39,8 @@ export class StreamService {
     const sourceId = encodeURIComponent(torrent.sourceId);
     const infoHash = encodeURIComponent(torrent.infoHash);
     const fileIndex = encodeURIComponent(torrentFileIndex);
+
+    const name = torrent.files[torrentFileIndex]!.name;
 
     const description = this.getStreamDescription(
       torrent,
@@ -48,11 +52,12 @@ export class StreamService {
       preferredLanguage,
     );
     return {
-      url: `${config.addonUrl}/api/auth/${deviceToken}/stream/play/${sourceName}/${sourceId}/${infoHash}/${fileIndex}`,
+      url: `${config.addonUrl}/api/auth/${deviceToken}/stream/play/${sourceName}/${sourceId}/${infoHash}/${fileIndex}/${type}`,
       description,
       behaviorHints: {
         notWebReady: true,
         bingeGroup: torrent.infoHash,
+        filename: name,
       },
     };
   }
@@ -69,7 +74,7 @@ export class StreamService {
     const fileSizeString = formatBytes(file.length);
 
     const isShow = season && episode;
-    let mediaType = '';
+    let mediaType: string;
     switch (preferredLanguage) {
       case Language.HU:
         mediaType = isShow ? 'sorozat' : 'film';

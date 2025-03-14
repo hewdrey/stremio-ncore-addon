@@ -74,6 +74,14 @@ export class TorrentStoreService {
     console.log(
       `Successfully deleted torrent file for ${torrent.name} - ${torrent.infoHash}.`,
     );
+
+    const hlsPath = `${env.ADDON_DIR}/hls/${infoHash}`;
+    if (existsSync(hlsPath)) {
+      await rm(hlsPath, { recursive: true });
+      console.log(
+        `Successfully deleted HLS stream for ${torrent.name} - ${torrent.infoHash}.`,
+      );
+    }
   }
 
   public getStoreStats(): TorrentStoreStats[] {
