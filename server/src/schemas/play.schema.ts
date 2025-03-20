@@ -6,4 +6,5 @@ export const playSchema = z.object({
   sourceId: z.string(),
   infoHash: z.string(),
   fileIdx: z.coerce.number(),
+  type: z.string(),
 });

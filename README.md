@@ -72,6 +72,7 @@ View answer
 - Recommendations and torrent ordering based on user preferences (Language + Resolution).
 - Automatic HTTPS on LAN.
 - Optionally available localized catalogues, metadata, search functionality
+- Added HLS Stream for Android devices.
 
 ## Setup
 

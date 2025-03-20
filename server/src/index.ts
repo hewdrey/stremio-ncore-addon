@@ -54,6 +54,7 @@ import { CatalogController } from './controllers/catalog.controller';
 import { WatchHistoryService } from '@/services/watch-history';
 import { MetadataService } from '@/services/metadata';
 import { TmdbService } from '@/services/catalog/tmdb.service';
+import { readFile } from 'fs/promises';
 
 const userService = new UserService(db);
 const configService = new ConfigService(db, userService);
@@ -218,11 +219,38 @@ const app = new Hono<HonoEnv>()
     streamController.getStreamsForMedia(c),
   )
   .get(
-    '/auth/:deviceToken/stream/play/:sourceName/:sourceId/:infoHash/:fileIdx',
+    '/auth/:deviceToken/stream/play/:sourceName/:sourceId/:infoHash/:fileIdx/:type',
     isDeviceAuthenticated,
     (c) => streamController.play(c),
   )
+  .get(
+    '/auth/:deviceToken/stream/play/:sourceName/:sourceId/:infoHash/:fileIdx/hls/:fileName',
+    async (c) => {
+      const { infoHash, fileIdx, fileName } = c.req.param();
 
+      const filePath = `${env.ADDON_DIR}/hls/${infoHash}/${fileIdx}/${fileName}`;
+
+      function getContentType(fileName: string): string {
+        if (fileName.endsWith('.m3u8')) return 'application/vnd.apple.mpegurl';
+        if (fileName.endsWith('.ts')) return 'video/mp2t';
+        if (fileName.endsWith('.vtt')) return 'text/vtt';
+        return '';
+      }
+
+      try {
+        const fileContent = await readFile(filePath);
+        const contentType = getContentType(fileName);
+
+        return new Response(fileContent, {
+          headers: {
+            'Content-Type': contentType,
+          },
+        });
+      } catch (err) {
+        return c.text('File not found', 404);
+      }
+    },
+  )
   .get('/torrents', isAdmin, (c) => torrentController.getTorrentStats(c))
   .delete('/torrents/:infoHash', isAdmin, (c) => torrentController.deleteTorrent(c))
 
