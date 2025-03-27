@@ -7,6 +7,7 @@ import type { StreamService } from '@/services/stream';
 import type { UserService } from '@/services/user';
 import type { TorrentStoreService } from '@/services/torrent-store';
 import { playSchema } from '@/schemas/play.schema';
+import { proxy } from 'hono/proxy';
 import { parseRangeHeader } from '@/utils/parse-range-header';
 import { HttpStatusCode } from '@/types/http';
 import type { TorrentSourceManager } from '@/services/torrent-source';
@@ -116,7 +117,6 @@ export class StreamController {
       const torrentFilePath = await this.torrentService.downloadTorrentFile(torrentUrl);
       torrent = await this.torrentStoreService.addTorrent(torrentFilePath);
     }
-
     const file = torrent.files[Number(fileIdx)]!;
 
     if (type === 'hls') {
@@ -157,34 +157,13 @@ export class StreamController {
         },
       });
     } else {
-      const fileType = mime.getType(file.path) || 'application/octet-stream';
-      if (c.req.method === 'HEAD') {
-        return c.body(null, 200, {
-          'Content-Length': `${file.length}`,
-          'Content-Type': fileType,
-        });
-      }
-      const range = parseRangeHeader(c.req.header('range'), file.length);
-      if (!range) {
-        console.error(`Invalid range header: ${c.req.header('range')}`);
-        return c.body(null, 416, {
-          'Content-Range': `bytes */${file.length}`,
-        });
-      }
-      const { start, end } = range;
-
-      console.log(`Range: ${start}-${end}`);
-
-      const stream = file.stream({ start, end });
-      return new Response(stream, {
-        status: 206,
-        headers: {
-          'Content-Range': `bytes ${start}-${end}/${file.length}`,
-          'Content-Length': `${end - start + 1}`,
-          'Content-Type': fileType,
-          'Accept-Ranges': 'bytes',
-        },
-      });
+        return proxy(
+            this.torrentStoreService.getFileStreamingUrl({
+                infoHash: torrent.infoHash,
+                filePath: file.path,
+            }),
+            { headers: { ...c.req.header() } },
+        );
     }
   }
 
