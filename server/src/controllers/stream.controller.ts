@@ -19,6 +19,7 @@ import * as fs from 'node:fs';
 import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import {TorrentFileResponse, TorrentResponse} from "@/services/torrent-store/types";
+import { readableFromWeb } from 'readable-from-web';
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
@@ -190,7 +191,7 @@ export class StreamController {
             { headers: { range: 'bytes=0-' } },
     );
 
-    const torrentStream = response.body as unknown as NodeJS.ReadableStream;
+    const torrentStream = readableFromWeb(response.body as ReadableStream);
 
     const hlsArgs = [
       '-i',
@@ -261,7 +262,7 @@ export class StreamController {
           { headers: { range: 'bytes=0-' } },
       );
 
-      const audioStream = response.body as unknown as NodeJS.ReadableStream;
+      const audioStream = readableFromWeb(response.body as ReadableStream);
 
       const audioArgs = [
         '-i',
@@ -320,7 +321,7 @@ export class StreamController {
           { headers: { range: 'bytes=0-' } },
       );
 
-      const subtitleStream = response.body as unknown as NodeJS.ReadableStream;
+      const subtitleStream = readableFromWeb(response.body as ReadableStream);
 
       const subtitleArgs = [
         '-i',
@@ -545,8 +546,10 @@ export class StreamController {
           }),
           {headers: {range: `bytes=0-${512 * 1024}`}},
       );
-      const torrentStream = response.body as unknown as NodeJS.ReadableStream;
+      console.log('Starting download')
+      const torrentStream = readableFromWeb(response.body as ReadableStream);
 
+      console.log('Starting ffmpeg')
       ffmpeg(
           new Readable().wrap(torrentStream),
       ).ffprobe((err, metadata) => {
@@ -582,6 +585,7 @@ export class StreamController {
           duration: duration ?? 3600,
         });
       });
+      console.log('Finished ffmpeg')
     });
   }
 }
