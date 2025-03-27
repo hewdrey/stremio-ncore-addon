@@ -198,6 +198,9 @@ importers:
       ffprobe-installer:
         specifier: ^2.1.5
         version: 2.1.5
+      fluent-ffmpeg:
+        specifier: ^2.1.3
+        version: 2.1.3
       glob:
         specifier: ^11.0.0
         version: 11.0.0
@@ -265,9 +268,6 @@ importers:
       eslint:
         specifier: ^9.17.0
         version: 9.17.0(jiti@2.4.2)
-      fluent-ffmpeg:
-        specifier: ^2.1.3
-        version: 2.1.3
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.10.2)
@@ -2179,6 +2179,10 @@ packages:
   '@types/content-disposition@0.5.8':
     resolution: {integrity: sha512-QVSSvno3dE0MgO76pJhmv4Qyi/j0Yk9pBp0Y7TJ2Tlj+KCgJWY6qX7nnxCOLkZ3VYRSIk1WTxCvwUSdx6CCLdg==}
 
+  '@types/dotenv@8.2.3':
+    resolution: {integrity: sha512-g2FXjlDX/cYuc5CiQvyU/6kkbP1JtmGzh0obW50zD7OKeILVL0NSpPWLXVfqoAGQjom2/SLLx9zHq0KXvD6mbw==}
+    deprecated: This is a stub types definition. dotenv provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
@@ -2214,6 +2218,9 @@ packages:
 
   '@types/magnet-uri@5.1.5':
     resolution: {integrity: sha512-SbBjlb1KGe38VfjRR+mwqztJd/4skhdKkRbIzPDhTy7IAeEAPZWIVSEkZw00Qr4ZZOGR3/ATJ20WWPBfrKHGdA==}
+
+  '@types/minimatch@5.1.2':
+    resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
 
   '@types/node-cron@3.0.11':
     resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
@@ -2916,6 +2923,10 @@ packages:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
 
+  dotenv@16.4.7:
+    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
+    engines: {node: '>=12'}
+
   drizzle-kit@0.30.1:
     resolution: {integrity: sha512-HmA/NeewvHywhJ2ENXD3KvOuM/+K2dGLJfxVfIHsGwaqKICJnS+Ke2L6UcSrSrtMJLJaT0Im1Qv4TFXfaZShyw==}
     hasBin: true
@@ -3336,15 +3347,6 @@ packages:
   fluent-ffmpeg@2.1.3:
     resolution: {integrity: sha512-Be3narBNt2s6bsaqP6Jzq91heDgOEaDCJAXcE3qcma/EJBSy5FB4cvO31XBInuAuKBx8Kptf8dkhjK0IOru39Q==}
     engines: {node: '>=18'}
-
-  follow-redirects@1.15.9:
-    resolution: {integrity: sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -7168,6 +7170,10 @@ snapshots:
 
   '@types/content-disposition@0.5.8': {}
 
+  '@types/dotenv@8.2.3':
+    dependencies:
+      dotenv: 16.4.7
+
   '@types/estree@1.0.6': {}
 
   '@types/fluent-ffmpeg@2.1.27':
@@ -7211,6 +7217,8 @@ snapshots:
   '@types/magnet-uri@5.1.5':
     dependencies:
       '@types/node': 22.10.2
+
+  '@types/minimatch@5.1.2': {}
 
   '@types/node-cron@3.0.11': {}
 
@@ -7971,6 +7979,8 @@ snapshots:
     dependencies:
       esutils: 2.0.3
 
+  dotenv@16.4.7: {}
+
   drizzle-kit@0.30.1:
     dependencies:
       '@drizzle-team/brocli': 0.10.2
@@ -8543,8 +8553,6 @@ snapshots:
     dependencies:
       async: 0.2.10
       which: 1.3.1
-
-  follow-redirects@1.15.9: {}
 
   for-each@0.3.5:
     dependencies:

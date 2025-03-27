@@ -1,6 +1,5 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import mime from 'mime';
 import { streamQuerySchema } from '@/schemas/stream.schema';
 import type { TorrentService } from '@/services/torrent';
 import type { StreamService } from '@/services/stream';
@@ -8,20 +7,18 @@ import type { UserService } from '@/services/user';
 import type { TorrentStoreService } from '@/services/torrent-store';
 import { playSchema } from '@/schemas/play.schema';
 import { proxy } from 'hono/proxy';
-import { parseRangeHeader } from '@/utils/parse-range-header';
 import { HttpStatusCode } from '@/types/http';
 import type { TorrentSourceManager } from '@/services/torrent-source';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffprobeInstaller from 'ffprobe-installer';
-
 import path from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { env } from '@/env';
 import * as fs from 'node:fs';
 import { Readable } from 'stream';
-import WebTorrent from 'webtorrent';
 import { spawn } from 'child_process';
+import {TorrentFileResponse, TorrentResponse} from "@/services/torrent-store/types";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
@@ -122,7 +119,7 @@ export class StreamController {
     if (type === 'hls') {
       if (c.req.method === 'HEAD') {
         return c.body(null, 200, {
-          'Content-Length': `${file.length}`,
+          'Content-Length': `${file.size}`,
           'Content-Type': 'application/vnd.apple.mpegurl',
         });
       }
@@ -130,12 +127,12 @@ export class StreamController {
 
       if (!existsSync(outputDir)) {
         mkdirSync(outputDir, { recursive: true });
-        const codecInfo = await this.getFileCodecInfoFromStream(file);
+        const codecInfo = await this.getFileCodecInfoFromStream(file, torrent);
         await this.generatePreGeneratedM3U8Audio(outputDir, codecInfo);
         await this.generatePreGeneratedM3U8Subtitle(outputDir, codecInfo);
         await this.generatePreGeneratedM3U8Video(outputDir, codecInfo);
         await this.generatePreGeneratedM3U8Master(outputDir, codecInfo);
-        void this.generateHLS(file, outputDir, ``, codecInfo);
+        void this.generateHLS(file, torrent, outputDir, ``, codecInfo);
       }
 
       const masterPath = path.join(outputDir, 'master.m3u8');
@@ -168,7 +165,8 @@ export class StreamController {
   }
 
   private async generateHLS(
-    file: WebTorrent.TorrentFile,
+    file: TorrentFileResponse,
+    torrent: TorrentResponse,
     outputDir: string,
     basePath: string,
     codecInfo: {
@@ -184,7 +182,15 @@ export class StreamController {
       }[];
     },
   ): Promise<void> {
-    const torrentStream = file.createReadStream();
+    const response = await proxy(
+            this.torrentStoreService.getFileStreamingUrl({
+              infoHash: torrent.infoHash,
+              filePath: file.path,
+            }),
+            { headers: { range: 'bytes=0-' } },
+    );
+
+    const torrentStream = response.body as unknown as NodeJS.ReadableStream;
 
     const hlsArgs = [
       '-i',
@@ -247,7 +253,15 @@ export class StreamController {
     });
 
     for (const audio of codecInfo.audioStreams) {
-      const audioStream = file.createReadStream();
+      const response = await proxy(
+          this.torrentStoreService.getFileStreamingUrl({
+            infoHash: torrent.infoHash,
+            filePath: file.path,
+          }),
+          { headers: { range: 'bytes=0-' } },
+      );
+
+      const audioStream = response.body as unknown as NodeJS.ReadableStream;
 
       const audioArgs = [
         '-i',
@@ -298,7 +312,15 @@ export class StreamController {
     }
 
     for (const subtitle of codecInfo.subtitles) {
-      const subtitleStream = file.createReadStream();
+      const response = await proxy(
+          this.torrentStoreService.getFileStreamingUrl({
+            infoHash: torrent.infoHash,
+            filePath: file.path,
+          }),
+          { headers: { range: 'bytes=0-' } },
+      );
+
+      const subtitleStream = response.body as unknown as NodeJS.ReadableStream;
 
       const subtitleArgs = [
         '-i',
@@ -494,7 +516,8 @@ export class StreamController {
     }
   }
 
-  private async getFileCodecInfoFromStream(file: WebTorrent.TorrentFile): Promise<{
+  private async getFileCodecInfoFromStream( file: TorrentFileResponse,
+                                            torrent: TorrentResponse): Promise<{
     videoCodec?: string;
     pixFmt?: string;
     subtitles: {
@@ -513,9 +536,19 @@ export class StreamController {
     }[];
     duration: number;
   }> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+
+      const response = await proxy(
+          this.torrentStoreService.getFileStreamingUrl({
+            infoHash: torrent.infoHash,
+            filePath: file.path,
+          }),
+          {headers: {range: `bytes=0-${512 * 1024}`}},
+      );
+      const torrentStream = response.body as unknown as NodeJS.ReadableStream;
+
       ffmpeg(
-        new Readable().wrap(file.createReadStream({ start: 0, end: 512 * 1024 })),
+          new Readable().wrap(torrentStream),
       ).ffprobe((err, metadata) => {
         if (err) return reject(err);
 
@@ -523,23 +556,23 @@ export class StreamController {
 
         const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
         const subtitleStreams = metadata.streams
-          .filter((s) => s.codec_type === 'subtitle')
-          .map((s, index) => ({
-            index: index,
-            title: s.tags?.title || `${index + 1}`,
-            language: s.tags?.language || 'unknown',
-            forced: /forced/i.test(s.tags?.title),
-            default: index === 0,
-          }));
+            .filter((s) => s.codec_type === 'subtitle')
+            .map((s, index) => ({
+              index: index,
+              title: s.tags?.title || `${index + 1}`,
+              language: s.tags?.language || 'unknown',
+              forced: /forced/i.test(s.tags?.title),
+              default: index === 0,
+            }));
         const audioStreams = metadata.streams
-          .filter((s) => s.codec_type === 'audio')
-          .map((s, index) => ({
-            index,
-            name: s.tags?.title || `${index + 1}`,
-            language: s.tags?.language || 'unknown',
-            default: index === 0,
-            codec: s.codec_name || 'unknown',
-          }));
+            .filter((s) => s.codec_type === 'audio')
+            .map((s, index) => ({
+              index,
+              name: s.tags?.title || `${index + 1}`,
+              language: s.tags?.language || 'unknown',
+              default: index === 0,
+              codec: s.codec_name || 'unknown',
+            }));
 
         resolve({
           videoCodec: videoStream?.codec_name,
