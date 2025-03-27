@@ -1,3 +1,5 @@
+import { existsSync } from 'fs';
+import { rm } from 'fs/promises';
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { TorrentSourceManager } from '../torrent-source';
 import { TorrentResponse, TorrentStoreStats } from './types';
@@ -68,8 +70,18 @@ export class TorrentStoreService {
   }
 
   public async deleteTorrent(infoHash: string): Promise<void> {
-    this.checkServer();
-    return await this.torrentServerSdk.deleteTorrent(infoHash);
+
+    const hlsPath = `${env.ADDON_DIR}/hls/${infoHash}`;
+    if (existsSync(hlsPath)) {
+      await rm(hlsPath, { recursive: true });
+      console.log(
+        `Successfully deleted HLS stream for ${infoHash}.`,
+      );
+    }
+
+      this.checkServer();
+      return await this.torrentServerSdk.deleteTorrent(infoHash);
+
   }
 
   public async getStoreStats(): Promise<TorrentStoreStats[]> {
