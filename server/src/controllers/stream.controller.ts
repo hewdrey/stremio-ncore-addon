@@ -1,13 +1,12 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import mime from 'mime';
 import { streamQuerySchema } from '@/schemas/stream.schema';
 import type { TorrentService } from '@/services/torrent';
 import type { StreamService } from '@/services/stream';
 import type { UserService } from '@/services/user';
 import type { TorrentStoreService } from '@/services/torrent-store';
 import { playSchema } from '@/schemas/play.schema';
-import { parseRangeHeader } from '@/utils/parse-range-header';
+import { proxy } from 'hono/proxy';
 import { HttpStatusCode } from '@/types/http';
 import type { TorrentSourceManager } from '@/services/torrent-source';
 
@@ -46,6 +45,8 @@ export class StreamController {
       user,
     });
 
+    const { preferredLanguage } = user;
+
     const streams = orderedTorrents.map((torrent, i) =>
       this.streamService.convertTorrentToStream({
         torrent,
@@ -53,6 +54,7 @@ export class StreamController {
         deviceToken,
         season,
         episode,
+        preferredLanguage,
       }),
     );
 
@@ -84,37 +86,14 @@ export class StreamController {
       const torrentFilePath = await this.torrentService.downloadTorrentFile(torrentUrl);
       torrent = await this.torrentStoreService.addTorrent(torrentFilePath);
     }
-
     const file = torrent.files[Number(fileIdx)]!;
-    const fileType = mime.getType(file.path) || 'application/octet-stream';
 
-    if (c.req.method === 'HEAD') {
-      return c.body(null, 200, {
-        'Content-Length': `${file.length}`,
-        'Content-Type': fileType,
-      });
-    }
-
-    const range = parseRangeHeader(c.req.header('range'), file.length);
-    if (!range) {
-      console.error(`Invalid range header: ${c.req.header('range')}`);
-      return c.body(null, 416, {
-        'Content-Range': `bytes */${file.length}`,
-      });
-    }
-    const { start, end } = range;
-
-    console.log(`Range: ${start}-${end}`);
-
-    const stream = file.stream({ start, end });
-    return new Response(stream, {
-      status: 206,
-      headers: {
-        'Content-Range': `bytes ${start}-${end}/${file.length}`,
-        'Content-Length': `${end - start + 1}`,
-        'Content-Type': fileType,
-        'Accept-Ranges': 'bytes',
-      },
-    });
+    return proxy(
+      this.torrentStoreService.getFileStreamingUrl({
+        infoHash: torrent.infoHash,
+        filePath: file.path,
+      }),
+      { headers: { ...c.req.header() } },
+    );
   }
 }
